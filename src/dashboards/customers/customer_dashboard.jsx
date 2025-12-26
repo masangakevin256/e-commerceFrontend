@@ -30,10 +30,10 @@ function CustomerDashboard() {
     const [searchTerm, setSearchTerm] = useState("");
     const [showNotifications, setShowNotifications] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const Navigate = useNavigate();
     const notificationRef = useRef(null);
-    
-
+    const sidebarRef = useRef(null);
 
     // Close notifications when clicking outside
     useEffect(() => {
@@ -48,6 +48,35 @@ function CustomerDashboard() {
             document.removeEventListener('mousedown', handleClickOutside);
         };
     }, []);
+
+    // Handle sidebar collapse state on window resize
+    useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth < 992) {
+                setSidebarCollapsed(false);
+            }
+        };
+
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    // Load sidebar state from localStorage
+    useEffect(() => {
+        const savedState = localStorage.getItem('customerSidebarCollapsed');
+        if (savedState !== null) {
+            setSidebarCollapsed(JSON.parse(savedState));
+        }
+    }, []);
+
+    // Save sidebar state to localStorage
+    useEffect(() => {
+        localStorage.setItem('customerSidebarCollapsed', JSON.stringify(sidebarCollapsed));
+    }, [sidebarCollapsed]);
+
+    const toggleSidebar = () => {
+        setSidebarCollapsed(!sidebarCollapsed);
+    };
 
     const fetchCartCount = async () => {
         const accessToken = localStorage.getItem("accessToken");
@@ -355,12 +384,21 @@ function CustomerDashboard() {
                     {/* Brand/Logo */}
                     <div className="d-flex align-items-center">
                         <button
-                            className="navbar-toggler me-2 border-0"
+                            className="navbar-toggler me-2 border-0 d-lg-none"
                             type="button"
                             data-bs-toggle="offcanvas"
                             data-bs-target="#sidebar"
                         >
                             <span className="navbar-toggler-icon"></span>
+                        </button>
+                        {/* Sidebar Toggle Arrow for large screens */}
+                        <button
+                            className="btn btn-link text-white me-2 d-none d-lg-flex align-items-center justify-content-center"
+                            onClick={toggleSidebar}
+                            title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+                            style={{ width: "40px", height: "40px", borderRadius: "50%" }}
+                        >
+                            <i className={`bi bi-chevron-${sidebarCollapsed ? 'right' : 'left'} fs-5`}></i>
                         </button>
                         <Link className="navbar-brand fw-bold d-flex align-items-center" to="/">
                             <i className="bi bi-shop me-2"></i>
@@ -601,48 +639,103 @@ function CustomerDashboard() {
             {/* Main Content Area */}
             <div className="container-fluid">
                 <div className="row">
-                    {/* Sidebar Navigation - Offcanvas for mobile with custom scroll */}
-                    <div className="col-lg-2 col-xl-2 d-none d-lg-block p-0">
-                        <div className="bg-white shadow-sm min-vh-100 border-end d-flex flex-column">
-                            <div className="p-3 border-bottom">
-                                <h6 className="fw-bold text-primary mb-0">
-                                    <i className="bi bi-speedometer2 me-2"></i>
-                                    Dashboard
-                                </h6>
-                                <small className="text-muted">Customer Panel</small>
-                            </div>
-                            <nav className="nav flex-column p-3 flex-grow-1" 
-                                 style={{ 
-                                     overflowY: "auto",
-                                     maxHeight: "calc(100vh - 200px)",
-                                     scrollbarWidth: "thin",
-                                     scrollbarColor: "#dee2e6 #ffffff"
-                                 }}>
-                                {navItems.map((item) => (
-                                    <button
-                                        key={item.key}
-                                        className={`nav-link text-start d-flex align-items-center py-2 mb-1 rounded ${section === item.key ? 'active bg-primary text-white' : 'text-dark'}`}
-                                        onClick={() => setSection(item.key)}
-                                    >
-                                        <i className={`bi ${item.icon} me-3`}></i>
-                                        <span className="flex-grow-1">{item.label}</span>
-                                        {item.badge && (
-                                            <span className={`badge ${section === item.key ? 'bg-light text-primary' : 'bg-primary'}`}>
-                                                {item.badge}
-                                            </span>
-                                        )}
-                                    </button>
-                                ))}
-                            </nav>
+                    {/* Sidebar Navigation - Collapsible for desktop */}
+                    <div 
+                        ref={sidebarRef}
+                        className={`d-none d-lg-block p-0 transition-all ${sidebarCollapsed ? 'col-lg-1 col-xl-1' : 'col-lg-2 col-xl-2'}`}
+                        style={{ transition: 'all 0.3s ease' }}
+                    >
+                        <div className="bg-white shadow-sm min-vh-100 border-end d-flex flex-column position-relative">
+                            {/* Sidebar Toggle Arrow inside sidebar (bottom) */}
+                            <button
+                                className="btn btn-light btn-sm position-absolute top-50 end-0 translate-middle-y rounded-circle shadow-sm d-flex align-items-center justify-content-center"
+                                onClick={toggleSidebar}
+                                title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+                                style={{ 
+                                    width: "24px", 
+                                    height: "24px", 
+                                    zIndex: 1000,
+                                    right: "-12px"
+                                }}
+                            >
+                                <i className={`bi bi-chevron-${sidebarCollapsed ? 'right' : 'left'}`} style={{ fontSize: "0.8rem" }}></i>
+                            </button>
+                            
+                            {!sidebarCollapsed ? (
+                                // Expanded sidebar view
+                                <>
+                                    <div className="p-3 border-bottom">
+                                        <h6 className="fw-bold text-primary mb-0">
+                                            <i className="bi bi-speedometer2 me-2"></i>
+                                            Dashboard
+                                        </h6>
+                                        <small className="text-muted">Customer Panel</small>
+                                    </div>
+                                    <nav className="nav flex-column p-3 flex-grow-1" 
+                                         style={{ 
+                                             overflowY: "auto",
+                                             maxHeight: "calc(100vh - 200px)",
+                                             scrollbarWidth: "thin",
+                                             scrollbarColor: "#dee2e6 #ffffff"
+                                         }}>
+                                        {navItems.map((item) => (
+                                            <button
+                                                key={item.key}
+                                                className={`nav-link text-start d-flex align-items-center py-2 mb-1 rounded ${section === item.key ? 'active bg-primary text-white' : 'text-dark'}`}
+                                                onClick={() => setSection(item.key)}
+                                            >
+                                                <i className={`bi ${item.icon} me-3`}></i>
+                                                <span className="flex-grow-1">{item.label}</span>
+                                                {item.badge && (
+                                                    <span className={`badge ${section === item.key ? 'bg-light text-primary' : 'bg-primary'}`}>
+                                                        {item.badge}
+                                                    </span>
+                                                )}
+                                            </button>
+                                        ))}
+                                    </nav>
 
-                            <div className="p-3 border-top">
-                                <small className="text-muted d-block mb-2">Quick Stats</small>
-                                <div className="d-flex justify-content-between small">
-                                    <span>Orders: <strong>{orderCount}</strong></span>
-                                    <span>Cart: <strong>{cartCount}</strong></span>
-                                    <span>Wishlist: <strong>{wishlistCount}</strong></span>
-                                </div>
-                            </div>
+                                    <div className="p-3 border-top">
+                                        <small className="text-muted d-block mb-2">Quick Stats</small>
+                                        <div className="d-flex justify-content-between small">
+                                            <span>Orders: <strong>{orderCount}</strong></span>
+                                            <span>Cart: <strong>{cartCount}</strong></span>
+                                            <span>Wishlist: <strong>{wishlistCount}</strong></span>
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                // Collapsed sidebar view (icons only)
+                                <>
+                                    <div className="p-3 border-bottom text-center">
+                                        <i className="bi bi-speedometer2 text-primary fs-5"></i>
+                                    </div>
+                                    <nav className="nav flex-column p-3 flex-grow-1" 
+                                         style={{ 
+                                             overflowY: "auto",
+                                             maxHeight: "calc(100vh - 150px)"
+                                         }}>
+                                        {navItems.map((item) => (
+                                            <button
+                                                key={item.key}
+                                                className={`nav-link text-center d-flex align-items-center justify-content-center py-2 mb-1 rounded ${section === item.key ? 'active bg-primary text-white' : 'text-dark'}`}
+                                                onClick={() => setSection(item.key)}
+                                                title={item.label}
+                                            >
+                                                <div className="position-relative">
+                                                    <i className={`bi ${item.icon} fs-5`}></i>
+                                                    {item.badge && item.badge > 0 && (
+                                                        <span className={`position-absolute top-0 start-100 translate-middle badge ${section === item.key ? 'bg-light text-primary' : 'bg-primary'}`}
+                                                              style={{ fontSize: "0.5rem", minWidth: "16px", height: "16px" }}>
+                                                            {item.badge > 9 ? "9+" : item.badge}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </nav>
+                                </>
+                            )}
                         </div>
                     </div>
 
@@ -699,8 +792,8 @@ function CustomerDashboard() {
                         </div>
                     </div>
 
-                    {/* Main Content */}
-                    <div className="col-lg-10 col-xl-10 p-0">
+                    {/* Main Content - Adjusts based on sidebar state */}
+                    <div className={`p-0 ${sidebarCollapsed ? 'col-lg-11 col-xl-11' : 'col-lg-10 col-xl-10'}`}>
                         <div className="p-3">
                             {/* Breadcrumb/Page Header */}
                             <div className="d-flex justify-content-between align-items-center mb-3">
@@ -859,6 +952,11 @@ function CustomerDashboard() {
                 
                 .position-absolute::-webkit-scrollbar-thumb:hover {
                     background: #adb5bd;
+                }
+                
+                /* Smooth transition for sidebar collapse */
+                .transition-all {
+                    transition: all 0.3s ease;
                 }
                 
                 /* Custom notification panel styles */
