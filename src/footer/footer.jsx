@@ -89,7 +89,7 @@ function Footer() {
                 
                 // Redirect after delay
                 setTimeout(() => {
-                    window.location.href= "https://e-commerce-backend-0qbw.onrender.com/error"
+                    navigate("/admin/dashboard")
                 }, 1500);
             }
             
@@ -121,7 +121,8 @@ function Footer() {
             setShowAdminLogin(true);
         } else {
             // In production, redirect to separate admin login page
-            navigate("/admin-login");
+            window.location.href= "https://e-commerce-backend-0qbw.onrender.com/error"
+            // navigate("/admin-login");
         }
     };
 
