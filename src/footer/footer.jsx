@@ -115,14 +115,14 @@ function Footer() {
     };
 
     const handleHiddenAdminClick = () => {
-        showAdminLogin(true)
-        // Only show admin login in development mode
-        // if (process.env.NODE_ENV === 'development') {
-        //     setShowAdminLogin(true);
-        // } else {
-        //     // In production, redirect to separate admin login page
-        //     navigate("/admin-login");
-        // }
+    //    showAdminLogin(true)
+        //Only show admin login in development mode
+        if (process.env.NODE_ENV === 'development') {
+            setShowAdminLogin(true);
+        } else {
+            // In production, redirect to separate admin login page
+            navigate("/admin-login");
+        }
     };
 
     return (
