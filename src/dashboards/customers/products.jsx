@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import {BASE_URL} from "../../tokens/BASE_URL";
+import { BASE_URL } from "../../tokens/BASE_URL";
+
 function Products({ showMessage, showError = () => { }, updateCartCount = () => { }, searchTerm = "", setSearchTerm = () => { } }) {
     const [products, setProducts] = useState([]);
-    const [filteredProducts, setFilteredProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [viewProduct, setViewProduct] = useState(null);
@@ -18,8 +18,16 @@ function Products({ showMessage, showError = () => { }, updateCartCount = () => 
     const [recentlyViewed, setRecentlyViewed] = useState([]);
     const [productReviews, setProductReviews] = useState({});
     const [reviewStats, setReviewStats] = useState({});
-
     
+    // Pagination states
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalProducts, setTotalProducts] = useState(0);
+    const [hasNextPage, setHasNextPage] = useState(false);
+    const [hasPrevPage, setHasPrevPage] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [pageSize] = useState(100); // Load 100 products per page
+
     // Recently Viewed Logic
     useEffect(() => {
         const saved = JSON.parse(localStorage.getItem("recentlyViewed") || "[]");
@@ -46,6 +54,7 @@ function Products({ showMessage, showError = () => { }, updateCartCount = () => 
         setLocalSearch(searchTerm || "");
     }, [searchTerm]);
 
+    // Scroll handler
     useEffect(() => {
         const handleScroll = () => {
             setShowScrollToTop(window.scrollY > 400);
@@ -58,57 +67,134 @@ function Products({ showMessage, showError = () => { }, updateCartCount = () => 
         window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
-    // Fetch products and wishlist
-    useEffect(() => {
-        fetchProducts();
-    }, []);
-
-    const fetchProducts = async () => {
+    // Fetch products with pagination
+    const fetchProducts = async (page = 1, append = false) => {
         try {
-            setLoading(true);
+            if (page === 1) {
+                setLoading(true);
+            } else {
+                setLoadingMore(true);
+            }
+            
             const token = localStorage.getItem("accessToken");
             const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
+            // Build query parameters
+            const params = new URLSearchParams({
+                page: page,
+                limit: pageSize
+            });
+
+            // Add category filter if selected
+            if (selectedCategory && selectedCategory !== "all") {
+                params.append('category_id', selectedCategory);
+            }
+
+            // Add search term if provided
+            if (searchTerm) {
+                params.append('search', searchTerm);
+            }
+
+            // Fetch products
             const [prodRes, wishRes] = await Promise.all([
-                axios.get(`${BASE_URL}/products`, { headers }),
+                axios.get(`${BASE_URL}/products?${params}`, { headers }),
                 token ? axios.get(`${BASE_URL}/wishlist/status`, { headers }) : Promise.resolve({ data: [] })
             ]);
 
-            setProducts(prodRes.data);
-            setFilteredProducts(prodRes.data);
-            setWishlistedIds(wishRes.data || []);
+            if (prodRes.data.success) {
+                if (append) {
+                    // Append new products to existing ones
+                    setProducts(prev => [...prev, ...prodRes.data.products]);
+                } else {
+                    // Replace products with new ones
+                    setProducts(prodRes.data.products);
+                }
+                
+                // Update pagination info
+                setCurrentPage(prodRes.data.pagination.currentPage);
+                setTotalPages(prodRes.data.pagination.totalPages);
+                setTotalProducts(prodRes.data.pagination.totalProducts);
+                setHasNextPage(prodRes.data.pagination.hasNextPage);
+                setHasPrevPage(prodRes.data.pagination.hasPrevPage);
+                
+                setWishlistedIds(wishRes.data || []);
+                setError(null);
 
-            // Extract categories
-            const uniqueCategories = ["all", ...new Set(prodRes.data.map(p => p.category_name || "Un categorized"))];
-            setCategories(uniqueCategories);
-            setError(null);
+                // Extract categories from all products (you might want a separate categories endpoint)
+                if (!append && prodRes.data.products.length > 0) {
+                    const uniqueCategories = ["all", ...new Set(prodRes.data.products.map(p => p.category_name || "Uncategorized"))];
+                    setCategories(uniqueCategories);
+                }
 
-            // Fetch initial review stats for all products
-            fetchReviewStatsForProducts(prodRes.data);
+                // Fetch review stats for loaded products
+                fetchReviewStatsForProducts(prodRes.data.products);
+            } else {
+                throw new Error(prodRes.data.message || "Failed to load products");
+            }
         } catch (err) {
             console.error("Error fetching products:", err);
             setError("Failed to load products. Please try again.");
         } finally {
             setLoading(false);
+            setLoadingMore(false);
         }
     };
 
+    // Fetch review stats for products
     const fetchReviewStatsForProducts = async (productsList) => {
         const stats = {};
-        for (const product of productsList) {
-            try {
-                const res = await axios.get(`${BASE_URL}/reviews/${product.id}`);
-                const reviews = res.data || [];
-                stats[product.id] = {
-                    average: reviews.length > 0 ? 
-                        (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1) : "0.0",
-                    count: reviews.length
-                };
-            } catch (err) {
-                stats[product.id] = { average: "0.0", count: 0 };
+        const batchSize = 10; // Process in batches to avoid too many requests
+        
+        for (let i = 0; i < productsList.length; i += batchSize) {
+            const batch = productsList.slice(i, i + batchSize);
+            
+            const batchPromises = batch.map(async (product) => {
+                try {
+                    const res = await axios.get(`${BASE_URL}/reviews/${product.id}`);
+                    const reviews = res.data || [];
+                    return {
+                        id: product.id,
+                        average: reviews.length > 0 ? 
+                            (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1) : "0.0",
+                        count: reviews.length
+                    };
+                } catch (err) {
+                    return {
+                        id: product.id,
+                        average: "0.0",
+                        count: 0
+                    };
+                }
+            });
+            
+            const batchResults = await Promise.all(batchPromises);
+            batchResults.forEach(result => {
+                stats[result.id] = { average: result.average, count: result.count };
+            });
+            
+            // Update state after each batch
+            setReviewStats(prev => ({ ...prev, ...stats }));
+            
+            // Small delay between batches to avoid overwhelming the server
+            if (i + batchSize < productsList.length) {
+                await new Promise(resolve => setTimeout(resolve, 100));
             }
         }
-        setReviewStats(stats);
+    };
+
+    // Load more products
+    const loadMoreProducts = () => {
+        if (hasNextPage && !loadingMore) {
+            fetchProducts(currentPage + 1, true);
+        }
+    };
+
+    // Handle page change
+    const handlePageChange = (page) => {
+        if (page >= 1 && page <= totalPages) {
+            fetchProducts(page, false);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
     };
 
     // Fetch reviews for specific product
@@ -128,6 +214,7 @@ function Products({ showMessage, showError = () => { }, updateCartCount = () => 
         }
     };
 
+    // Toggle wishlist
     const toggleWishlist = async (productId) => {
         if (wishlistLoading) return;
         
@@ -160,34 +247,14 @@ function Products({ showMessage, showError = () => { }, updateCartCount = () => 
         }
     };
 
-    // Filter products
-    useEffect(() => {
-        let result = products;
-
-        if (selectedCategory !== "all") {
-            result = result.filter(p => 
-                (p.category_name || "Uncategorized") === selectedCategory
-            );
-        }
-
-        if (searchTerm && searchTerm.trim() !== "") {
-            const term = searchTerm.toLowerCase();
-            result = result.filter(p =>
-                p.name.toLowerCase().includes(term) ||
-                (p.description && p.description.toLowerCase().includes(term)) ||
-                (p.category_name && p.category_name.toLowerCase().includes(term))
-            );
-        }
-
-        setFilteredProducts(result);
-    }, [searchTerm, selectedCategory, products]);
-
+    // Handle search change with debounce
     const handleSearchChange = (e) => {
         const value = e.target.value;
         setLocalSearch(value);
         if (setSearchTerm) setSearchTerm(value);
     };
 
+    // Add to cart
     const addToCart = async (id, productName) => {
         const token = localStorage.getItem("accessToken");
         if (!token) {
@@ -214,6 +281,7 @@ function Products({ showMessage, showError = () => { }, updateCartCount = () => 
         }
     };
 
+    // Render stars
     const renderStars = (rating) => {
         return (
             <div className="d-flex">
@@ -228,6 +296,18 @@ function Products({ showMessage, showError = () => { }, updateCartCount = () => 
             </div>
         );
     };
+
+    // Initial fetch
+    useEffect(() => {
+        fetchProducts();
+    }, []);
+
+    // Refetch when filters change
+    useEffect(() => {
+        if (!loading) {
+            fetchProducts(1, false);
+        }
+    }, [selectedCategory, searchTerm]);
 
     // Product Detail View
     if (viewProduct && selectedProduct) {
@@ -362,7 +442,7 @@ function Products({ showMessage, showError = () => { }, updateCartCount = () => 
                     </div>
                     <button type="button" className="btn-close" onClick={() => setError(null)}></button>
                     <div className="mt-3">
-                        <button className="btn btn-outline-primary" onClick={fetchProducts}>
+                        <button className="btn btn-outline-primary" onClick={() => fetchProducts(1)}>
                             <i className="bi bi-arrow-clockwise me-2"></i> Try Again
                         </button>
                     </div>
@@ -372,7 +452,7 @@ function Products({ showMessage, showError = () => { }, updateCartCount = () => 
     }
 
     // No results
-    if (filteredProducts.length === 0 && !loading) {
+    if (products.length === 0 && !loading) {
         return (
             <div className="container py-5">
                 <div className="text-center py-5">
@@ -397,8 +477,8 @@ function Products({ showMessage, showError = () => { }, updateCartCount = () => 
         );
     }
 
-    // Group products by category
-    const groupedProducts = filteredProducts.reduce((groups, product) => {
+    // Group products by category for current page
+    const groupedProducts = products.reduce((groups, product) => {
         const category = product.category_name || "Uncategorized";
         if (!groups[category]) groups[category] = [];
         groups[category].push(product);
@@ -414,7 +494,7 @@ function Products({ showMessage, showError = () => { }, updateCartCount = () => 
                         <i className="bi bi-grid-3x3-gap me-2"></i> Products
                     </h1>
                     <p className="text-muted small mb-0 mt-1">
-                        Showing {filteredProducts.length} of {products.length} products
+                        Showing {products.length} of {totalProducts} products (Page {currentPage} of {totalPages})
                     </p>
                 </div>
                 <div className="col-md-6">
@@ -550,6 +630,98 @@ function Products({ showMessage, showError = () => { }, updateCartCount = () => 
                 </div>
             ))}
 
+            {/* Pagination Controls */}
+            <div className="row mt-4">
+                <div className="col-12">
+                    <div className="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small className="text-muted">
+                                Page {currentPage} of {totalPages} • {totalProducts} total products
+                            </small>
+                        </div>
+                        
+                        <div className="d-flex gap-2">
+                            {/* Previous Page Button */}
+                            <button
+                                className="btn btn-outline-primary btn-sm"
+                                onClick={() => handlePageChange(currentPage - 1)}
+                                disabled={!hasPrevPage || loadingMore}
+                            >
+                                <i className="bi bi-chevron-left"></i> Previous
+                            </button>
+                            
+                            {/* Page Numbers */}
+                            <div className="btn-group">
+                                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                    let pageNum;
+                                    if (totalPages <= 5) {
+                                        pageNum = i + 1;
+                                    } else if (currentPage <= 3) {
+                                        pageNum = i + 1;
+                                    } else if (currentPage >= totalPages - 2) {
+                                        pageNum = totalPages - 4 + i;
+                                    } else {
+                                        pageNum = currentPage - 2 + i;
+                                    }
+                                    
+                                    return (
+                                        <button
+                                            key={pageNum}
+                                            className={`btn btn-sm ${currentPage === pageNum ? 'btn-primary' : 'btn-outline-primary'}`}
+                                            onClick={() => handlePageChange(pageNum)}
+                                        >
+                                            {pageNum}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            
+                            {/* Next Page Button */}
+                            <button
+                                className="btn btn-outline-primary btn-sm"
+                                onClick={() => handlePageChange(currentPage + 1)}
+                                disabled={!hasNextPage || loadingMore}
+                            >
+                                Next <i className="bi bi-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Load More Button (Alternative to pagination) */}
+            {hasNextPage && (
+                <div className="text-center mt-4">
+                    <button
+                        className="btn btn-primary"
+                        onClick={loadMoreProducts}
+                        disabled={loadingMore}
+                    >
+                        {loadingMore ? (
+                            <>
+                                <span className="spinner-border spinner-border-sm me-2"></span>
+                                Loading More Products...
+                            </>
+                        ) : (
+                            <>
+                                <i className="bi bi-plus-circle me-2"></i>
+                                Load More Products ({totalProducts - products.length} remaining)
+                            </>
+                        )}
+                    </button>
+                </div>
+            )}
+
+            {/* Loading More Indicator */}
+            {loadingMore && (
+                <div className="text-center py-3">
+                    <div className="spinner-border text-primary" role="status">
+                        <span className="visually-hidden">Loading more products...</span>
+                    </div>
+                    <p className="text-muted mt-2">Loading more products...</p>
+                </div>
+            )}
+
             {/* Scroll to Top */}
             {showScrollToTop && (
                 <button className="btn btn-primary rounded-circle position-fixed shadow-lg" onClick={scrollToTop}
@@ -561,7 +733,7 @@ function Products({ showMessage, showError = () => { }, updateCartCount = () => 
     );
 }
 
-// Reviews Tab Component
+// Reviews Tab Component (unchanged from your original code)
 function ReviewsTab({ productId, showMessage, showError }) {
     const [reviews, setReviews] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -569,8 +741,6 @@ function ReviewsTab({ productId, showMessage, showError }) {
     const [rating, setRating] = useState(0);
     const [comment, setComment] = useState("");
     const [userReview, setUserReview] = useState(null);
-
-    const BASE_URL = "http://localhost:3500";
 
     useEffect(() => {
         fetchReviews();
