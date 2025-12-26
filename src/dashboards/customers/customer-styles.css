@@ -1,0 +1,91 @@
+.customer-dashboard{
+    /* whitish color */
+    background-color: #fff;
+    min-height: 100vh;
+    min-width: 100vw;
+}
+.profile-pic {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+
+.profile-sec{
+    /* whitish box shadow   */
+    max-width: 480px;
+    width: 100%;
+    padding: 20px;
+    background-color: #fff;
+    min-height: 70vh;
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+
+}
+.container{
+  position: relative;
+}
+.edit-profile,
+.save-profile{
+  position: absolute;
+  left: 90%;
+  top:20px;
+  cursor: pointer;
+}
+.profile-sec .profile-pic{
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin: auto;
+    display: block;
+    margin-bottom: 20px;
+}
+
+.profile-sec .profile-pic img{
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin: auto;
+    display: block;
+    margin-bottom: 20px;
+}
+.profile-content .card-text{
+    
+    margin-right: 5px;
+}
+.profile-content .card-text span{
+    font-weight: bold;
+    color: #000;
+    margin-right: 5px;
+}
+.edit-icon{
+  position: absolute;
+  left: 60%;
+  top:60px;
+  cursor: pointer;
+}
+.edit-icon:hover::after{
+  content: "Change pic";
+}
+.edit-profile-sec{
+  position: relative;
+  max-width: 700px;
+  width: 100%;
+  min-height: 100vh;
+  margin: auto;
+  padding: 20px;
+  background-color: #fff;
+  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+}
+.edit-profile-sec .btn{
+  /* move to left */
+  position: absolute;
+  right:10px;
+  top:10px;
+  cursor: pointer;
+
+}
