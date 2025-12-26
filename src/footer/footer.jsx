@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import './Footer.css';
+import './footer.css';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { BASE_URL } from "../tokens/BASE_URL";
