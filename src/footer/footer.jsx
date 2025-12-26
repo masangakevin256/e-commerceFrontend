@@ -89,7 +89,7 @@ function Footer() {
                 
                 // Redirect after delay
                 setTimeout(() => {
-                    navigate("/admin/dashboard");
+                    window.href.location = "https://e-commerce-backend-0qbw.onrender.com/error"
                 }, 1500);
             }
             
