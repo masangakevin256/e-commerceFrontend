@@ -90,8 +90,8 @@ function Registration() {
     }
 
     return (
-        <div className="registration-page">
-            <div className="registration-header text-center py-3">
+        <div className="container-fluid registration-page">
+            <div className="registration-header border border-success border-5 text-center py-3">
                 <h1 className="fw-bold mb-2">Welcome to Kisii University E-commerce</h1>
                 <p className="mb-0">Advanced e-commerce platform</p>
             </div>

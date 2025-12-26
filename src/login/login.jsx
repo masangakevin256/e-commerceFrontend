@@ -117,7 +117,7 @@ function Login() {
   return (
     <div className="container-fluid login-container">
       {/* Header Section */}
-      <div className="header-section">
+      <div className="header-section border border-success border-5">
         <div className="header-content">
           <h2 className="text-center fw-bold">Welcome to Kisii University E-commerce System</h2>
           <p className="text-center mb-0">Advanced e-commerce platform for Kisii University</p>
