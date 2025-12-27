@@ -117,13 +117,13 @@ function Footer() {
     const handleHiddenAdminClick = () => {
     //    showAdminLogin(true)
         //Only show admin login in development mode
-        if (process.env.NODE_ENV === 'development') {
+        // if (process.env.NODE_ENV === 'development') {
             setShowAdminLogin(true);
-        } else {
+        // } else {
             // In production, redirect to separate admin login page
-            window.location.href= "https://e-commerce-backend-0qbw.onrender.com/error"
+            // window.location.href= "https://e-commerce-backend-0qbw.onrender.com/error"
             // navigate("/admin-login");
-        }
+        // }
     };
 
     return (

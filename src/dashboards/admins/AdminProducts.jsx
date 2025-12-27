@@ -31,24 +31,139 @@ function AdminProducts() {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [productToDelete, setProductToDelete] = useState(null);
     const [previewImage, setPreviewImage] = useState("");
-    const [groupedProducts, setGroupedProducts] = useState({});
+    
+    // Pagination states
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalProducts, setTotalProducts] = useState(0);
+    const [hasNextPage, setHasNextPage] = useState(false);
+    const [hasPrevPage, setHasPrevPage] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [pageSize] = useState(50); // Load 50 products per page for admin view
+    const [allProductsLoaded, setAllProductsLoaded] = useState(false);
 
     useEffect(() => {
         fetchProducts();
         fetchCategories();
     }, []);
 
-    const fetchProducts = async () => {
+    // Fetch products with pagination
+    const fetchProducts = async (page = 1, append = false) => {
         try {
-            setLoading(true);
+            if (page === 1) {
+                setLoading(true);
+            } else {
+                setLoadingMore(true);
+            }
+            
             const accessToken = localStorage.getItem("accessToken");
-            const res = await axios.get(`${BASE_URL}/products`, {
+            
+            // Build query parameters
+            const params = new URLSearchParams({
+                page: page,
+                limit: pageSize
+            });
+
+            // Add category filter if selected
+            if (selectedCategory && selectedCategory !== "all") {
+                params.append('category_id', selectedCategory);
+            }
+
+            // Add search term if provided
+            if (searchTerm) {
+                params.append('search', searchTerm);
+            }
+
+            // Add sorting
+            params.append('sort_by', sortBy === 'name' ? 'p.name' : sortBy === 'price' ? 'p.price' : 'p.created_at');
+            params.append('sort_order', sortOrder.toUpperCase());
+
+            const res = await axios.get(`${BASE_URL}/products?${params}`, {
                 headers: { Authorization: `Bearer ${accessToken}` }
             });
-            setProducts(res.data);
-            setError("");
+
+            if (res.data.success) {
+                if (append) {
+                    // Append new products to existing ones
+                    setProducts(prev => [...prev, ...res.data.products]);
+                } else {
+                    // Replace products with new ones
+                    setProducts(res.data.products);
+                }
+                
+                // Update pagination info
+                setCurrentPage(res.data.pagination.currentPage);
+                setTotalPages(res.data.pagination.totalPages);
+                setTotalProducts(res.data.pagination.totalProducts);
+                setHasNextPage(res.data.pagination.hasNextPage);
+                setHasPrevPage(res.data.pagination.hasPrevPage);
+                
+                setError("");
+            } else {
+                throw new Error(res.data.message || "Failed to load products");
+            }
         } catch (err) {
+            console.error("Error fetching products:", err);
             setError("Failed to fetch products");
+        } finally {
+            setLoading(false);
+            setLoadingMore(false);
+        }
+    };
+
+    // Load more products
+    const loadMoreProducts = () => {
+        if (hasNextPage && !loadingMore) {
+            fetchProducts(currentPage + 1, true);
+        }
+    };
+
+    // Handle page change
+    const handlePageChange = (page) => {
+        if (page >= 1 && page <= totalPages) {
+            fetchProducts(page, false);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    };
+
+    // Load all products for category grouping (can be done on server side with category aggregation)
+    const loadAllProducts = async () => {
+        try {
+            setAllProductsLoaded(true);
+            setLoading(true);
+            
+            const accessToken = localStorage.getItem("accessToken");
+            let allProducts = [];
+            let page = 1;
+            let hasMore = true;
+            
+            while (hasMore) {
+                const params = new URLSearchParams({
+                    page: page,
+                    limit: 100, // Load 100 at a time for efficiency
+                    ...(selectedCategory !== "all" && { category_id: selectedCategory }),
+                    ...(searchTerm && { search: searchTerm })
+                });
+                
+                const res = await axios.get(`${BASE_URL}/products?${params}`, {
+                    headers: { Authorization: `Bearer ${accessToken}` }
+                });
+                
+                if (res.data.success) {
+                    allProducts = [...allProducts, ...res.data.products];
+                    hasMore = res.data.pagination.hasNextPage;
+                    page++;
+                } else {
+                    break;
+                }
+            }
+            
+            setProducts(allProducts);
+            setTotalProducts(allProducts.length);
+            setAllProductsLoaded(false);
+        } catch (err) {
+            console.error("Error loading all products:", err);
+            setError("Failed to load all products");
         } finally {
             setLoading(false);
         }
@@ -75,12 +190,10 @@ function AdminProducts() {
         }
     };
 
-   
-
     const filteredProducts = useMemo(() => {
         let filtered = products;
         
-        // Apply search filter
+        // Apply search filter (client-side if needed, but we already have server-side)
         if (searchTerm) {
             filtered = filtered.filter(p => 
                 p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -89,41 +202,30 @@ function AdminProducts() {
             );
         }
         
-        // Apply category filter
-        if (selectedCategory !== "all") {
+        // Apply category filter (client-side if needed)
+        if (selectedCategory !== "all" && selectedCategory !== "") {
             filtered = filtered.filter(p => 
                 p.category_id?.toString() === selectedCategory ||
                 p.category_name === selectedCategory
             );
         }
         
-        // Apply sorting
-        filtered.sort((a, b) => {
-            let valA, valB;
-            
-            switch (sortBy) {
-                case "price":
-                    valA = parseFloat(a.price);
-                    valB = parseFloat(b.price);
-                    break;
-                case "stock":
-                    valA = parseInt(a.stock);
-                    valB = parseInt(b.stock);
-                    break;
-                case "name":
-                default:
-                    valA = a.name.toLowerCase();
-                    valB = b.name.toLowerCase();
-            }
-            
-            if (valA < valB) return sortOrder === "asc" ? -1 : 1;
-            if (valA > valB) return sortOrder === "asc" ? 1 : -1;
-            return 0;
-        });
-        
         return filtered;
-    }, [products, searchTerm, selectedCategory, sortBy, sortOrder]);
-     const handleFileChange = (e) => {
+    }, [products, searchTerm, selectedCategory]);
+
+    // Group products by category for display
+    const groupedProducts = useMemo(() => {
+        return filteredProducts.reduce((groups, product) => {
+            const category = product.category_name || "Uncategorized";
+            if (!groups[category]) {
+                groups[category] = [];
+            }
+            groups[category].push(product);
+            return groups;
+        }, {});
+    }, [filteredProducts]);
+
+    const handleFileChange = (e) => {
         const file = e.target.files[0];
         setFormData(prev => ({ ...prev, imageFile: file }));
         
@@ -135,19 +237,6 @@ function AdminProducts() {
             reader.readAsDataURL(file);
         }
     };
-
-    // Group products by category
-    useEffect(() => {
-        const grouped = filteredProducts.reduce((groups, product) => {
-            const category = product.category_name || "Uncategorized";
-            if (!groups[category]) {
-                groups[category] = [];
-            }
-            groups[category].push(product);
-            return groups;
-        }, {});
-        setGroupedProducts(grouped);
-    }, [filteredProducts]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -194,7 +283,7 @@ function AdminProducts() {
             
             setShowModal(false);
             resetForm();
-            fetchProducts();
+            fetchProducts(1, false); // Refresh to first page
             setTimeout(() => setMessage(""), 3000);
         } catch (err) {
             setError(err.response?.data?.message || "Operation failed. Please try again.");
@@ -256,7 +345,7 @@ function AdminProducts() {
             setMessage(`✅ Product "${productToDelete.name}" deleted successfully!`);
             setShowDeleteModal(false);
             setProductToDelete(null);
-            fetchProducts();
+            fetchProducts(currentPage, false); // Refresh current page
             setTimeout(() => setMessage(""), 3000);
         } catch (err) {
             setError("Failed to delete product");
@@ -277,6 +366,13 @@ function AdminProducts() {
         return category ? category.name : "Uncategorized";
     };
 
+    // Refetch when filters change
+    useEffect(() => {
+        if (!loading) {
+            fetchProducts(1, false);
+        }
+    }, [selectedCategory, searchTerm, sortBy, sortOrder]);
+
     return (
         <div className="container-fluid py-3 px-4">
             {/* Header */}
@@ -295,7 +391,7 @@ function AdminProducts() {
                         <div className="d-flex align-items-center">
                             <span className="badge bg-primary bg-opacity-10 text-primary px-3 py-2 me-3">
                                 <i className="bi bi-box me-1"></i>
-                                {products.length} Total Products
+                                {totalProducts} Total Products
                             </span>
                             <button 
                                 className="btn btn-primary d-flex align-items-center"
@@ -386,7 +482,7 @@ function AdminProducts() {
                                         >
                                             <option value="name">Name</option>
                                             <option value="price">Price</option>
-                                            <option value="stock">Stock</option>
+                                            <option value="created_at">Date Added</option>
                                         </select>
                                         <button 
                                             className="btn btn-outline-secondary"
@@ -399,7 +495,9 @@ function AdminProducts() {
                                 
                                 <div className="col-lg-2 col-md-6">
                                     <div className="text-muted small">
-                                        Showing <strong>{filteredProducts.length}</strong> of <strong>{products.length}</strong> products
+                                        Showing <strong>{filteredProducts.length}</strong> of <strong>{totalProducts}</strong> products
+                                        <br />
+                                        Page <strong>{currentPage}</strong> of <strong>{totalPages}</strong>
                                     </div>
                                 </div>
                             </div>
@@ -451,96 +549,212 @@ function AdminProducts() {
                     </div>
                 </div>
             ) : (
-                Object.keys(groupedProducts).map((category) => (
-                    <div key={category} className="mb-5">
-                        {/* Category Header */}
-                        <div className="d-flex justify-content-between align-items-center mb-3">
-                            <h4 className="fw-bold text-primary h5 mb-0">
-                                <i className="bi bi-tag me-2"></i>
-                                {category}
-                            </h4>
-                            <span className="badge bg-primary bg-opacity-10 text-primary px-3 py-2">
-                                {groupedProducts[category].length} products
-                            </span>
-                        </div>
+                <>
+                    {/* Products Grid */}
+                    {Object.keys(groupedProducts).map((category) => (
+                        <div key={category} className="mb-5">
+                            {/* Category Header */}
+                            <div className="d-flex justify-content-between align-items-center mb-3">
+                                <h4 className="fw-bold text-primary h5 mb-0">
+                                    <i className="bi bi-tag me-2"></i>
+                                    {category}
+                                </h4>
+                                <span className="badge bg-primary bg-opacity-10 text-primary px-3 py-2">
+                                    {groupedProducts[category].length} products
+                                </span>
+                            </div>
 
-                        {/* Products Grid */}
-                        <div className="row g-3">
-                            {groupedProducts[category].map(product => (
-                                <div key={product.id} className="col-xxl-2 col-xl-3 col-lg-4 col-md-4 col-sm-6">
-                                    <div className="card border-0 shadow-sm h-100 product-card">
-                                        {/* Product Image */}
-                                        <div className="position-relative" style={{ height: "180px", overflow: "hidden" }}>
-                                            <img 
-                                                src={getImageUrl(product.image)} 
-                                                className="card-img-top h-100 w-100" 
-                                                alt={product.name}
-                                                style={{ objectFit: "cover" }}
-                                            />
-                                            <div className="position-absolute top-0 end-0 m-2">
-                                                {product.discount && (
-                                                    <span className="badge bg-danger">
-                                                        -{product.discount}%
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div className="position-absolute top-0 start-0 m-2">
-                                                <span className={`badge ${product.stock > 10 ? 'bg-success' : product.stock > 0 ? 'bg-warning' : 'bg-danger'}`}>
-                                                    {product.stock}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        
-                                        {/* Card Body */}
-                                        <div className="card-body p-3 d-flex flex-column">
-                                            <h6 className="card-title fw-bold mb-2 text-truncate" title={product.name}>
-                                                {product.name}
-                                            </h6>
-                                            
-                                            <p className="text-muted small mb-2 flex-grow-1" style={{ minHeight: "40px" }}>
-                                                {product.description?.substring(0, 50)}...
-                                            </p>
-                                            
-                                            <div className="mt-auto">
-                                                {/* Price */}
-                                                <div className="mb-3">
-                                                    <h6 className="text-primary fw-bold mb-0">KES {Number(product.price).toLocaleString()}</h6>
-                                                    {product.originalPrice && (
-                                                        <small className="text-muted text-decoration-line-through">
-                                                            KES {Number(product.originalPrice).toLocaleString()}
-                                                        </small>
+                            {/* Products Grid */}
+                            <div className="row g-3">
+                                {groupedProducts[category].map(product => (
+                                    <div key={product.id} className="col-xxl-2 col-xl-3 col-lg-4 col-md-4 col-sm-6">
+                                        <div className="card border-0 shadow-sm h-100 product-card">
+                                            {/* Product Image */}
+                                            <div className="position-relative" style={{ height: "180px", overflow: "hidden" }}>
+                                                <img 
+                                                    src={getImageUrl(product.image)} 
+                                                    className="card-img-top h-100 w-100" 
+                                                    alt={product.name}
+                                                    style={{ objectFit: "cover" }}
+                                                />
+                                                <div className="position-absolute top-0 end-0 m-2">
+                                                    {product.discount && (
+                                                        <span className="badge bg-danger">
+                                                            -{product.discount}%
+                                                        </span>
                                                     )}
                                                 </div>
+                                                <div className="position-absolute top-0 start-0 m-2">
+                                                    <span className={`badge ${product.stock > 10 ? 'bg-success' : product.stock > 0 ? 'bg-warning' : 'bg-danger'}`}>
+                                                        {product.stock}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            
+                                            {/* Card Body */}
+                                            <div className="card-body p-3 d-flex flex-column">
+                                                <h6 className="card-title fw-bold mb-2 text-truncate" title={product.name}>
+                                                    {product.name}
+                                                </h6>
                                                 
-                                                {/* Actions */}
-                                                <div className="d-flex gap-2">
-                                                    <button 
-                                                        className="btn btn-outline-primary btn-sm flex-grow-1"
-                                                        onClick={() => handleEdit(product)}
-                                                    >
-                                                        <i className="bi bi-pencil me-1"></i>
-                                                        Edit
-                                                    </button>
-                                                    <button 
-                                                        className="btn btn-outline-danger btn-sm"
-                                                        onClick={() => confirmDelete(product)}
-                                                        disabled={deletingId === product.id}
-                                                    >
-                                                        {deletingId === product.id ? (
-                                                            <span className="spinner-border spinner-border-sm"></span>
-                                                        ) : (
-                                                            <i className="bi bi-trash"></i>
+                                                <p className="text-muted small mb-2 flex-grow-1" style={{ minHeight: "40px" }}>
+                                                    {product.description?.substring(0, 50)}...
+                                                </p>
+                                                
+                                                <div className="mt-auto">
+                                                    {/* Price */}
+                                                    <div className="mb-3">
+                                                        <h6 className="text-primary fw-bold mb-0">KES {Number(product.price).toLocaleString()}</h6>
+                                                        {product.originalPrice && (
+                                                            <small className="text-muted text-decoration-line-through">
+                                                                KES {Number(product.originalPrice).toLocaleString()}
+                                                            </small>
                                                         )}
-                                                    </button>
+                                                    </div>
+                                                    
+                                                    {/* Actions */}
+                                                    <div className="d-flex gap-2">
+                                                        <button 
+                                                            className="btn btn-outline-primary btn-sm flex-grow-1"
+                                                            onClick={() => handleEdit(product)}
+                                                        >
+                                                            <i className="bi bi-pencil me-1"></i>
+                                                            Edit
+                                                        </button>
+                                                        <button 
+                                                            className="btn btn-outline-danger btn-sm"
+                                                            onClick={() => confirmDelete(product)}
+                                                            disabled={deletingId === product.id}
+                                                        >
+                                                            {deletingId === product.id ? (
+                                                                <span className="spinner-border spinner-border-sm"></span>
+                                                            ) : (
+                                                                <i className="bi bi-trash"></i>
+                                                            )}
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+
+                    {/* Pagination Controls */}
+                    <div className="row mt-4">
+                        <div className="col-12">
+                            <div className="card border-0 shadow-sm">
+                                <div className="card-body">
+                                    <div className="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <small className="text-muted">
+                                                Page {currentPage} of {totalPages} • {totalProducts} total products
+                                            </small>
+                                        </div>
+                                        
+                                        <div className="d-flex gap-2">
+                                            {/* Previous Page Button */}
+                                            <button
+                                                className="btn btn-outline-primary btn-sm"
+                                                onClick={() => handlePageChange(currentPage - 1)}
+                                                disabled={!hasPrevPage || loadingMore}
+                                            >
+                                                <i className="bi bi-chevron-left"></i> Previous
+                                            </button>
+                                            
+                                            {/* Page Numbers */}
+                                            <div className="btn-group">
+                                                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                                    let pageNum;
+                                                    if (totalPages <= 5) {
+                                                        pageNum = i + 1;
+                                                    } else if (currentPage <= 3) {
+                                                        pageNum = i + 1;
+                                                    } else if (currentPage >= totalPages - 2) {
+                                                        pageNum = totalPages - 4 + i;
+                                                    } else {
+                                                        pageNum = currentPage - 2 + i;
+                                                    }
+                                                    
+                                                    return (
+                                                        <button
+                                                            key={pageNum}
+                                                            className={`btn btn-sm ${currentPage === pageNum ? 'btn-primary' : 'btn-outline-primary'}`}
+                                                            onClick={() => handlePageChange(pageNum)}
+                                                        >
+                                                            {pageNum}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                            
+                                            {/* Next Page Button */}
+                                            <button
+                                                className="btn btn-outline-primary btn-sm"
+                                                onClick={() => handlePageChange(currentPage + 1)}
+                                                disabled={!hasNextPage || loadingMore}
+                                            >
+                                                Next <i className="bi bi-chevron-right"></i>
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
-                            ))}
+                            </div>
                         </div>
                     </div>
-                ))
+
+                    {/* Load More Button (Alternative to pagination) */}
+                    {hasNextPage && (
+                        <div className="text-center mt-4">
+                            <button
+                                className="btn btn-primary"
+                                onClick={loadMoreProducts}
+                                disabled={loadingMore}
+                            >
+                                {loadingMore ? (
+                                    <>
+                                        <span className="spinner-border spinner-border-sm me-2"></span>
+                                        Loading More Products...
+                                    </>
+                                ) : (
+                                    <>
+                                        <i className="bi bi-plus-circle me-2"></i>
+                                        Load More Products ({totalProducts - products.length} remaining)
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Load All Products Button (Optional for admin to see everything) */}
+                    {!allProductsLoaded && totalProducts > 100 && (
+                        <div className="text-center mt-3">
+                            <button
+                                className="btn btn-outline-secondary"
+                                onClick={loadAllProducts}
+                                disabled={loading}
+                            >
+                                <i className="bi bi-download me-2"></i>
+                                Load All Products ({totalProducts} total)
+                            </button>
+                            <small className="d-block text-muted mt-1">
+                                For complete view across all pages
+                            </small>
+                        </div>
+                    )}
+
+                    {/* Loading More Indicator */}
+                    {loadingMore && (
+                        <div className="text-center py-3">
+                            <div className="spinner-border text-primary" role="status">
+                                <span className="visually-hidden">Loading more products...</span>
+                            </div>
+                            <p className="text-muted mt-2">Loading more products...</p>
+                        </div>
+                    )}
+                </>
             )}
 
             {/* Add/Edit Product Modal - Made Scrollable */}
