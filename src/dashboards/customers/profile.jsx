@@ -369,10 +369,10 @@ function Profile({ refreshUser }) {
                         <p className="text-muted mb-0 small">Address</p>
                         <p className="fw-semibold mb-0">{user[0]?.address || "Not provided"}</p>
                       </div>
-                      <div>
+                      {/* <div>
                         <p className="text-muted mb-0 small">Referral Code</p>
                         <p className="fw-semibold mb-0">{user[0]?.referral_code || "Not provided"}</p>
-                      </div>
+                      </div> */}
                     </div>
                   </div>
                 </div>
