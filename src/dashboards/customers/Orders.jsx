@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+// EDITED: Use axiosPrivate
+import { axiosPrivate } from "../../api/axios";
 import { BASE_URL } from "../../tokens/BASE_URL";
 
 function Orders() {
@@ -17,11 +18,8 @@ function Orders() {
     const fetchOrders = async () => {
         try {
             setLoading(true);
-            const res = await axios.get(`${BASE_URL}/order`, {
-                headers: {
-                    Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-                },
-            });
+            // EDITED: axiosPrivate
+            const res = await axiosPrivate.get(`${BASE_URL}/order`);
             // The backend returns { orders: [...] }
             setOrders(res.data || []);
             setError("");
@@ -37,11 +35,8 @@ function Orders() {
         if (orderDetails[id]) return; // Already fetched
 
         try {
-            const res = await axios.get(`${BASE_URL}/order/${id}`, {
-                headers: {
-                    Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-                },
-            });
+            // EDITED: axiosPrivate
+            const res = await axiosPrivate.get(`${BASE_URL}/order/${id}`);
             setOrderDetails(prev => ({
                 ...prev,
                 [id]: res.data // Backend returns { order, items }

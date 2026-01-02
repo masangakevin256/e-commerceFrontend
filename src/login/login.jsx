@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+// EDITED: Use axiosPublic
+import { axiosPublic } from "../../api/axios";
 import './login.css';
 import Footer from "../footer/footer";
 import { useNavigate, Link } from "react-router-dom";
@@ -56,17 +57,18 @@ function Login() {
 
     setResetLoading(true);
     try {
-      const res = await axios.post(`${BASE_URL}/resetPassword/forgot-password`, {
+      // EDITED: use axiosPublic
+      const res = await axiosPublic.post(`${BASE_URL}/resetPassword/forgot-password`, {
         email: resetEmail
       });
-      
+
       setMessage(res.data?.message || "Password reset instructions sent to your email");
-      
+
       // Close modal using Bootstrap
       const modal = document.getElementById('forgotPasswordModal');
       const modalInstance = bootstrap.Modal.getInstance(modal);
       if (modalInstance) modalInstance.hide();
-      
+
       setResetEmail('');
     } catch (err) {
       setError(err.response?.data?.error || "Failed to send reset email");
@@ -85,11 +87,10 @@ function Login() {
 
     try {
       setLoading(true);
-      const res = await axios.post(`${BASE_URL}/login/customers`, {
+      // EDITED: use axiosPublic
+      const res = await axiosPublic.post(`/login/customers`, {
         email,
         password,
-      }, {
-        withCredentials: true
       });
 
       setMessage("Login successful");
@@ -101,7 +102,7 @@ function Login() {
       setTimeout(() => {
         navigate("/customer/dashboard");
       }, 2000);
-      
+
     } catch (err) {
       console.error(err);
       setError(
@@ -198,7 +199,7 @@ function Login() {
                   {showPassword ? <i className="bi bi-eye-slash"></i> : <i className="bi bi-eye"></i>}
                 </button>
               </div>
-              
+
               {/* Show Password Checkbox - Visible on mobile only, right below the password input */}
               <div className="show-password-checkbox mt-2 d-block d-md-none">
                 <div className="form-check">
@@ -230,8 +231,8 @@ function Login() {
                   Remember me
                 </label>
               </div>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="btn btn-link text-decoration-none p-0"
                 data-bs-toggle="modal"
                 data-bs-target="#forgotPasswordModal"
@@ -242,8 +243,8 @@ function Login() {
 
             {/* Login Button */}
             <div className="d-grid mb-4">
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 className="btn btn-primary btn-lg"
                 disabled={loading}
               >

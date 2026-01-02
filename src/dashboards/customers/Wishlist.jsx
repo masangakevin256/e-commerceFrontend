@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+// EDITED: Use axiosPrivate
+import { axiosPrivate } from "../../api/axios";
 import ProductCard from "../../products/product-card";
 import { BASE_URL } from "../../tokens/BASE_URL";
 function Wishlist({ updateCartCount, showMessage, showError }) {
@@ -16,11 +17,8 @@ function Wishlist({ updateCartCount, showMessage, showError }) {
     const fetchWishlist = async () => {
         try {
             setLoading(true);
-            const res = await axios.get(`${BASE_URL}/wishlist`, {
-                headers: {
-                    Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-                },
-            });
+            // EDITED: axiosPrivate & remove headers
+            const res = await axiosPrivate.get(`${BASE_URL}/wishlist`);
             setWishlistItems(res.data || []);
             setError("");
         } catch (err) {
@@ -34,11 +32,8 @@ function Wishlist({ updateCartCount, showMessage, showError }) {
 
     const handleRemoveFromWishlist = async (productId) => {
         try {
-            await axios.delete(`${BASE_URL}/wishlist/${productId}`, {
-                headers: {
-                    Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-                },
-            });
+            // EDITED: axiosPrivate & remove headers
+            await axiosPrivate.delete(`${BASE_URL}/wishlist/${productId}`);
             setWishlistItems(prev => prev.filter(item => item.id !== productId));
             if (showMessage) {
                 showMessage("Item removed from wishlist.");
@@ -54,13 +49,10 @@ function Wishlist({ updateCartCount, showMessage, showError }) {
     const handleAddToCart = async (id, productName) => {
         try {
             setAddingToCart(id);
-            await axios.post(`${BASE_URL}/cart`, {
+            // EDITED: axiosPrivate & remove headers
+            await axiosPrivate.post(`${BASE_URL}/cart`, {
                 product_id: id,
                 quantity: 1
-            }, {
-                headers: {
-                    Authorization: `Bearer ${localStorage.getItem("accessToken")}`
-                }
             });
 
             if (showMessage) {

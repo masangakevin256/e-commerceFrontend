@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+// EDITED: Use axiosPrivate for authenticated requests
+import { axiosPrivate } from "../../api/axios";
 import CartCard from "../../products/cartCard";
 import { Link, useNavigate } from "react-router-dom";
 import MpesaPayment from "./MpesaPayment";
-import {BASE_URL} from "../../tokens/BASE_URL";
-
-
+import { BASE_URL } from "../../tokens/BASE_URL";
 
 function Cart({ updateCartCount, customerPhone }) {
   const [cartItems, setCartItems] = useState([]);
@@ -46,11 +45,8 @@ function Cart({ updateCartCount, customerPhone }) {
     async function fetchCart() {
       try {
         setLoading(true);
-        const res = await axios.get(`${BASE_URL}/cart`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-          },
-        });
+        // EDITED: use axiosPrivate, remove headers (interceptor handles it)
+        const res = await axiosPrivate.get(`/cart`);
         setCartItems(res.data);
       } catch (err) {
         setError(err.response?.data?.message || "Failed to load cart items");
@@ -64,14 +60,10 @@ function Cart({ updateCartCount, customerPhone }) {
   async function handleUpdateQuantity(id, quantity) {
     try {
       setUpdatingId(id);
-      await axios.put(
-        `${BASE_URL}/cart/${id}`,
-        { quantity },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-          },
-        }
+      // EDITED: use axiosPrivate
+      await axiosPrivate.put(
+        `/cart/${id}`,
+        { quantity }
       );
       setCartItems((prev) =>
         prev.map((item) => (item.id === id ? { ...item, quantity } : item))
@@ -90,11 +82,8 @@ function Cart({ updateCartCount, customerPhone }) {
   async function handleDelete(id) {
     try {
       setDeletingId(id);
-      await axios.delete(`${BASE_URL}/cart/${id}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-        },
-      });
+      // EDITED: use axiosPrivate
+      await axiosPrivate.delete(`/cart/${id}`);
       setCartItems((prev) => prev.filter((item) => item.id !== id));
       if (updateCartCount) updateCartCount();
     } catch (err) {
@@ -109,11 +98,8 @@ function Cart({ updateCartCount, customerPhone }) {
 
     try {
       setLoading(true);
-      await axios.delete(`${BASE_URL}/cart/clear`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-        },
-      });
+      // EDITED: use axiosPrivate
+      await axiosPrivate.delete(`/cart/clear`);
       setCartItems([]);
       if (updateCartCount) updateCartCount();
     } catch (err) {
@@ -131,12 +117,9 @@ function Cart({ updateCartCount, customerPhone }) {
 
     try {
       setLoading(true);
-      const res = await axios.post(`${BASE_URL}/checkout`, {
+      // EDITED: use axiosPrivate
+      const res = await axiosPrivate.post(`/checkout`, {
         voucherCode: appliedVoucher?.code
-      }, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-        },
       });
 
       // Instead of alert, we set the order details to show the M-Pesa payment UI
@@ -167,13 +150,10 @@ function Cart({ updateCartCount, customerPhone }) {
 
       console.log("Applying voucher:", promoCode, "for subtotal:", subtotal);
 
-      const res = await axios.post(`${BASE_URL}/vouchers/validate`, {
+      // EDITED: use axiosPrivate
+      const res = await axiosPrivate.post(`/vouchers/validate`, {
         code: promoCode.trim(),
         cartTotal: subtotal
-      }, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-        },
       });
 
       console.log("Voucher apply response:", res.data);
