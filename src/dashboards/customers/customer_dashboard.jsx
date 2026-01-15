@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import React, { useState, useEffect, useRef } from "react";
 import { jwtDecode } from "jwt-decode";
 import axios from "axios";
-import defaultProfilePic from "../../../public/avatar.png";
+import defaultProfilePic from "../../assets/avatar.png";
 import Products from "./products";
 import Profile from "./profile";
 import Cart from "./Cart";

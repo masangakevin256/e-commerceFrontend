@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import productImg from "../../public/product.jpg";
+import productImg from "../assets/product.jpg";
 
 function CartCard({ item, onUpdateQuantity, onDelete }) {
   const [isDeleting, setIsDeleting] = useState(false);

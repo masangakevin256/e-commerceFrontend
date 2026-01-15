@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import BASE_URL from "../tokens/BASE_URL.jsx";
 
 const ReviewSection = ({ productId }) => {
     const [reviews, setReviews] = useState([]);
@@ -8,7 +9,7 @@ const ReviewSection = ({ productId }) => {
     const [message, setMessage] = useState("");
     const [error, setError] = useState("");
 
-    const API_URL = "http://localhost:3500";
+    const BASE_URL = "http://localhost:3500";
 
     useEffect(() => {
         fetchReviews();
@@ -16,7 +17,7 @@ const ReviewSection = ({ productId }) => {
 
     const fetchReviews = async () => {
         try {
-            const res = await axios.get(`${API_URL}/reviews/${productId}`);
+            const res = await axios.get(`${BASE_URL}/reviews/${productId}`);
             setReviews(res.data);
         } catch (err) {
             console.error("Error fetching reviews:", err);
@@ -28,7 +29,7 @@ const ReviewSection = ({ productId }) => {
         try {
             setLoading(true);
             const accessToken = localStorage.getItem("accessToken");
-            await axios.post(`${API_URL}/reviews`, {
+            await axios.post(`${BASE_URL}/reviews`, {
                 productId,
                 rating: myReview.rating,
                 comment: myReview.comment,

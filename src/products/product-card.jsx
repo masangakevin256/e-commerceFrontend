@@ -1,5 +1,5 @@
 import React from "react";
-import productImg from "../../public/product.jpg";
+import productImg from "../assets/product.jpg";
 
 import axios from "axios";
 

@@ -2,14 +2,14 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 import axios from "axios";
-import defaultProfilePic from "../../../public/avatar.png";
+import defaultProfilePic from "../../assets/avatar.png";
 import AdminOverview from "./AdminOverview";
 import AdminProducts from "./AdminProducts";
 import AdminOrders from "./AdminOrders";
 import AdminCustomers from "./AdminCustomers";
 import AdminCategories from "./AdminCategories";
 import AdminVouchers from "./AdminVouchers";
-import AdminSettings from "./AdminSettings";
+import AdminSettings from "./AdminSettings"
 import AdminProfile from "./profile";
 import AdminReviews from "./AdminReview";
 import AdminManagement from "./AdminSection";

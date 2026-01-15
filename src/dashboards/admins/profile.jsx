@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import defaultProfilePic from "../../../public/avatar.png";
+import defaultProfilePic from "../../assets/avatar.png";
 import { BASE_URL } from "../../tokens/BASE_URL";
 
 function AdminProfile({ refreshUser }) {
