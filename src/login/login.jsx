@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 // EDITED: Use axiosPublic
-import { axiosPublic } from "../../api/axios";
+import { axiosPublic } from "../api/axios.js";
 import './login.css';
 import Footer from "../footer/footer";
 import { useNavigate, Link } from "react-router-dom";
