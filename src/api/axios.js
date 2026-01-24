@@ -1,72 +1,103 @@
-import axios from 'axios';
-import { BASE_URL } from '../tokens/BASE_URL';
+import axios from "axios";
+import { BASE_URL } from "../tokens/BASE_URL";
 
-// EDITED: Create public instance for login/register
+
+
+// Public axios (login, register, refresh)
 export const axiosPublic = axios.create({
-    baseURL: BASE_URL,
-    headers: { 'Content-Type': 'application/json' },
-    withCredentials: true
+  baseURL: BASE_URL,
+  headers: { "Content-Type": "application/json" },
+  withCredentials: true
 });
 
-// EDITED: Create private instance for protected routes
+// Private axios (protected routes)
 export const axiosPrivate = axios.create({
-    baseURL: BASE_URL,
-    headers: { 'Content-Type': 'application/json' },
-    withCredentials: true
+  baseURL: BASE_URL,
+  headers: { "Content-Type": "application/json" },
+  withCredentials: true
 });
 
-// EDITED: Request interceptor to attach access token
+let accessToken = localStorage.getItem("accessToken");
+
 axiosPrivate.interceptors.request.use(
-    config => {
-        if (!config.headers['Authorization']) {
-            const token = localStorage.getItem("accessToken");
-            if (token) {
-                config.headers['Authorization'] = `Bearer ${token}`;
-            }
-        }
-        return config;
-    }, (error) => Promise.reject(error)
+  (config) => {
+    if (!config.headers.Authorization && accessToken) {
+      config.headers.Authorization = `Bearer ${accessToken}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
 );
+let isRefreshing = false;
+let failedQueue = [];
 
-// EDITED: Response interceptor to handle token refresh
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(prom => {
+    if (error) prom.reject(error);
+    else prom.resolve(token);
+  });
+  failedQueue = [];
+};
+
+
 axiosPrivate.interceptors.response.use(
-    response => response,
-    async (error) => {
-        const prevRequest = error?.config;
+  response => response,
+  async (error) => {
+    const originalRequest = error.config;
 
-        // EDITED: If 403 (Forbidden) or 401 (Unauthorized) and not already retried
-        if ((error?.response?.status === 403 || error?.response?.status === 401) && !prevRequest?.sent) {
-            prevRequest.sent = true;
-            try {
-                // EDITED: Call unified refresh endpoint
-                // Note: We use axiosPublic here to avoid infinite loops if this fails
-                const newAccessToken = await refresh();
+    if (
+      (error.response?.status === 401 || error.response?.status === 403) &&
+      !originalRequest._retry
+    ) {
+      originalRequest._retry = true;
 
-                // EDITED: Update local storage with new token
-                localStorage.setItem("accessToken", newAccessToken);
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then((token) => {
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return axiosPrivate(originalRequest);
+        });
+      }
 
-                // EDITED: Update header and retry original request
-                prevRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
-                return axiosPrivate(prevRequest);
-            } catch (refreshError) {
-                console.error("Token refresh failed:", refreshError);
-                // Optional: Redirect to login or clear storage
-                // localStorage.removeItem("accessToken");
-                // window.location.href = "/login"; 
-                return Promise.reject(refreshError);
-            }
-        }
-        return Promise.reject(error);
+      isRefreshing = true;
+
+      try {
+        const newToken = await refreshAccessToken();
+
+        accessToken = newToken;
+        localStorage.setItem("accessToken", newToken);
+        axiosPrivate.defaults.headers.common.Authorization = `Bearer ${newToken}`;
+
+        processQueue(null, newToken);
+
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        return axiosPrivate(originalRequest);
+
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        logout();
+        return Promise.reject(refreshError);
+
+      } finally {
+        isRefreshing = false;
+      }
     }
+
+    return Promise.reject(error);
+  }
 );
 
-// EDITED: Refresh function that calls the backend
-export const refresh = async () => {
-    try {
-        const response = await axiosPublic.get('/refresh');
-        // EDITED: Backend now returns { accessToken: "..." }
-        return response.data.accessToken;
-    } catch (error) {
-        throw error;
-    }
-}
+
+export const refreshAccessToken = async () => {
+  const response = await axiosPublic.get("/refresh");
+  return response.data.accessToken;
+};
+
+
+export const logout = () => {
+  accessToken = null;
+  localStorage.removeItem("accessToken");
+  delete axiosPrivate.defaults.headers.common.Authorization;
+  window.location.href = "/";
+};

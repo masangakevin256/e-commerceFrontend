@@ -12,6 +12,7 @@ import Voucher from "./Voucher";
 import Settings from "./Settings";
 import FAQ from "./FAQ";
 import { useNavigate } from "react-router-dom";
+import AIChatBot from "./AIChatBot";
 import { BASE_URL } from "../../tokens/BASE_URL";
 
 function CustomerDashboard() {
@@ -208,9 +209,9 @@ function CustomerDashboard() {
     const handleLogout = async () => {
         if (!window.confirm("Are you sure you want to logout?")) return;
         localStorage.removeItem("accessToken");
-        
+
         setMessage("Logging out.....");
-        
+
         setTimeout(() => {
             Navigate("/");
         }, 2000);
@@ -283,7 +284,7 @@ function CustomerDashboard() {
                     }
                 }} />;
             case "cart":
-                return <Cart updateCartCount={fetchCartCount} customerPhone={data.phoneNumber || data.phonenumber || " "}  />;
+                return <Cart updateCartCount={fetchCartCount} customerPhone={data.phoneNumber || data.phonenumber || " "} />;
             case "voucher":
                 return <Voucher />;
             case "settings":
@@ -448,23 +449,23 @@ function CustomerDashboard() {
                             >
                                 <i className="bi bi-bell fs-5"></i>
                                 {unreadCount > 0 && (
-                                    <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning" 
-                                          style={{ fontSize: "0.6rem", minWidth: "18px", height: "18px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                    <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning"
+                                        style={{ fontSize: "0.6rem", minWidth: "18px", height: "18px", display: "flex", alignItems: "center", justifyContent: "center" }}>
                                         {unreadCount > 9 ? "9+" : unreadCount}
                                     </span>
                                 )}
                             </button>
-                            
+
                             {/* Enhanced Notifications Panel */}
                             {showNotifications && (
-                                <div className="position-absolute end-0 mt-2 bg-white rounded shadow-lg border" 
-                                     style={{ 
-                                         width: "380px", 
-                                         maxHeight: "500px", 
-                                         overflowY: "auto",
-                                         zIndex: 1001,
-                                         right: "0"
-                                     }}>
+                                <div className="position-absolute end-0 mt-2 bg-white rounded shadow-lg border"
+                                    style={{
+                                        width: "380px",
+                                        maxHeight: "500px",
+                                        overflowY: "auto",
+                                        zIndex: 1001,
+                                        right: "0"
+                                    }}>
                                     {/* Notifications Header */}
                                     <div className="p-3 border-bottom bg-light">
                                         <div className="d-flex justify-content-between align-items-center">
@@ -473,7 +474,7 @@ function CustomerDashboard() {
                                                 <small className="text-muted">{unreadCount} unread</small>
                                             </div>
                                             {unreadCount > 0 && (
-                                                <button 
+                                                <button
                                                     className="btn btn-sm btn-link text-decoration-none p-0 text-primary"
                                                     onClick={handleMarkAllAsRead}
                                                 >
@@ -482,7 +483,7 @@ function CustomerDashboard() {
                                             )}
                                         </div>
                                     </div>
-                                    
+
                                     {/* Notifications List */}
                                     <div style={{ maxHeight: "400px", overflowY: "auto" }}>
                                         {notifications.length === 0 ? (
@@ -493,10 +494,10 @@ function CustomerDashboard() {
                                             </div>
                                         ) : (
                                             notifications.map(notification => (
-                                                <div 
-                                                    key={notification.id} 
+                                                <div
+                                                    key={notification.id}
                                                     className={`p-3 border-bottom ${!notification.is_read ? 'bg-light bg-opacity-25' : ''}`}
-                                                    style={{ 
+                                                    style={{
                                                         cursor: 'pointer',
                                                         borderLeft: !notification.is_read ? '3px solid var(--bs-primary)' : 'none'
                                                     }}
@@ -513,7 +514,7 @@ function CustomerDashboard() {
                                                                 </h6>
                                                                 <div className="d-flex gap-1">
                                                                     {!notification.is_read && (
-                                                                        <button 
+                                                                        <button
                                                                             className="btn btn-sm btn-link p-0 text-primary"
                                                                             onClick={(e) => {
                                                                                 e.stopPropagation();
@@ -524,7 +525,7 @@ function CustomerDashboard() {
                                                                             <i className="bi bi-check-circle"></i>
                                                                         </button>
                                                                     )}
-                                                                    <button 
+                                                                    <button
                                                                         className="btn btn-sm btn-link p-0 text-danger"
                                                                         onClick={(e) => {
                                                                             e.stopPropagation();
@@ -553,11 +554,11 @@ function CustomerDashboard() {
                                             ))
                                         )}
                                     </div>
-                                    
+
                                     {/* Notifications Footer */}
                                     {notifications.length > 0 && (
                                         <div className="p-3 border-top bg-light">
-                                            <button 
+                                            <button
                                                 className="btn btn-sm btn-outline-primary w-100"
                                                 onClick={() => {
                                                     setShowNotifications(false);
@@ -640,7 +641,7 @@ function CustomerDashboard() {
             <div className="container-fluid">
                 <div className="row">
                     {/* Sidebar Navigation - Collapsible for desktop */}
-                    <div 
+                    <div
                         ref={sidebarRef}
                         className={`d-none d-lg-block p-0 transition-all ${sidebarCollapsed ? 'col-lg-1 col-xl-1' : 'col-lg-2 col-xl-2'}`}
                         style={{ transition: 'all 0.3s ease' }}
@@ -651,16 +652,16 @@ function CustomerDashboard() {
                                 className="btn btn-light btn-sm position-absolute top-50 end-0 translate-middle-y rounded-circle shadow-sm d-flex align-items-center justify-content-center"
                                 onClick={toggleSidebar}
                                 title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-                                style={{ 
-                                    width: "24px", 
-                                    height: "24px", 
+                                style={{
+                                    width: "24px",
+                                    height: "24px",
                                     zIndex: 1000,
                                     right: "-12px"
                                 }}
                             >
                                 <i className={`bi bi-chevron-${sidebarCollapsed ? 'right' : 'left'}`} style={{ fontSize: "0.8rem" }}></i>
                             </button>
-                            
+
                             {!sidebarCollapsed ? (
                                 // Expanded sidebar view
                                 <>
@@ -671,13 +672,13 @@ function CustomerDashboard() {
                                         </h6>
                                         <small className="text-muted">Customer Panel</small>
                                     </div>
-                                    <nav className="nav flex-column p-3 flex-grow-1" 
-                                         style={{ 
-                                             overflowY: "auto",
-                                             maxHeight: "calc(100vh - 200px)",
-                                             scrollbarWidth: "thin",
-                                             scrollbarColor: "#dee2e6 #ffffff"
-                                         }}>
+                                    <nav className="nav flex-column p-3 flex-grow-1"
+                                        style={{
+                                            overflowY: "auto",
+                                            maxHeight: "calc(100vh - 200px)",
+                                            scrollbarWidth: "thin",
+                                            scrollbarColor: "#dee2e6 #ffffff"
+                                        }}>
                                         {navItems.map((item) => (
                                             <button
                                                 key={item.key}
@@ -710,11 +711,11 @@ function CustomerDashboard() {
                                     <div className="p-3 border-bottom text-center">
                                         <i className="bi bi-speedometer2 text-primary fs-5"></i>
                                     </div>
-                                    <nav className="nav flex-column p-3 flex-grow-1" 
-                                         style={{ 
-                                             overflowY: "auto",
-                                             maxHeight: "calc(100vh - 150px)"
-                                         }}>
+                                    <nav className="nav flex-column p-3 flex-grow-1"
+                                        style={{
+                                            overflowY: "auto",
+                                            maxHeight: "calc(100vh - 150px)"
+                                        }}>
                                         {navItems.map((item) => (
                                             <button
                                                 key={item.key}
@@ -726,7 +727,7 @@ function CustomerDashboard() {
                                                     <i className={`bi ${item.icon} fs-5`}></i>
                                                     {item.badge && item.badge > 0 && (
                                                         <span className={`position-absolute top-0 start-100 translate-middle badge ${section === item.key ? 'bg-light text-primary' : 'bg-primary'}`}
-                                                              style={{ fontSize: "0.5rem", minWidth: "16px", height: "16px" }}>
+                                                            style={{ fontSize: "0.5rem", minWidth: "16px", height: "16px" }}>
                                                             {item.badge > 9 ? "9+" : item.badge}
                                                         </span>
                                                     )}
@@ -764,11 +765,11 @@ function CustomerDashboard() {
                                 </div>
                             </div>
                             <nav className="nav flex-column p-3 flex-grow-1"
-                                 style={{ 
-                                     overflowY: "auto",
-                                     scrollbarWidth: "thin",
-                                     scrollbarColor: "#dee2e6 #ffffff"
-                                 }}>
+                                style={{
+                                    overflowY: "auto",
+                                    scrollbarWidth: "thin",
+                                    scrollbarColor: "#dee2e6 #ffffff"
+                                }}>
                                 {navItems.map((item) => (
                                     <button
                                         key={item.key}
@@ -899,6 +900,9 @@ function CustomerDashboard() {
                     </div>
                 </div>
             </footer>
+
+            {/* AI Chat Bot */}
+            <AIChatBot />
 
             {/* Custom Scrollbar Styles */}
             <style jsx>{`
